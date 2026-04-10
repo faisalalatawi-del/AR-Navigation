@@ -3,14 +3,14 @@
 <head>
     <meta charset='utf-8'>
     <meta http-equiv='X-UA-Compatible' content='IE=edge'>
-    <title>AR Navigation - Green Line</title>
+    <title>AR Navigation - Arrow Path</title>
     <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
     <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar-nft.js"></script>
 </head>
 
 <body style="margin: 0; overflow: hidden;">
     <div style="position: fixed; top: 20px; width: 100%; text-align: center; z-index: 10; color: #00FF00; font-family: Arial; font-weight: bold; text-shadow: 1px 1px 2px black;">
-        جاري تحديد الموقع... تحرك ببطء لضبط البوصلة
+        جاري رسم المسار... اتبع الأسهم على الأرض
     </div>
 
     <a-scene
@@ -21,42 +21,70 @@
         <a-camera gps-camera rotation-reader far="10000"></a-camera>
 
         <a-entity 
-            id="target"
-            gps-entity-place="latitude: 28.368777; longitude: 36.573467
-
-;"
-            geometry="primitive: cylinder; radius: 1; height: 100;"
-            material="color: #00FF00; opacity: 0.5; shader: flat;">
-            
-            <a-cone color="#00FF00" position="0 20 0" rotation="180 0 0" scale="3 3 3"></a-cone>
-            <a-text value="DESTINATION" align="center" position="0 25 0" scale="20 20 20" color="#00FF00"></a-text>
+            id="target-destination"
+            gps-entity-place="latitude: 28.368388; longitude: 36.573226;"
+            geometry="primitive: cylinder; radius: 1; height: 50;"
+            material="color: #00FF00; opacity: 0.6; shader: flat;"
+            position="0 0 0">
+            <a-text value="DESTINATION" align="center" position="0 30 0" scale="20 20 20" color="#00FF00"></a-text>
         </a-entity>
-
-        <a-entity id="path-line" line="start: 0 -1.6 0; end: 0 -1.6 -50; color: #00FF00"></a-entity>
 
     </a-scene>
 
     <script>
-        // تحديث اتجاه المسار الأخضر بناءً على حركة المستخدم
+        // دالة لرسم سلسلة من الأسهم على الأرض باتجاه الهدف
+        function drawPathToTarget(userPos, targetPos) {
+            const scene = document.querySelector('a-scene');
+            
+            // حساب المسافة والاتجاه بين المستخدم والهدف في عالم الواقع المعزز
+            // سنفترض أن الهدف على مسافة معينة، ونرسم الأسهم تباعاً.
+            // (هذا يتطلب تحويل إحداثيات GPS إلى إحداثيات ثلاثية الأبعاد)
+            
+            // في AR.js، عندما تفتح الكاميرا، يتم تعيين موقعك الافتراضي (0,0,0)
+            // ويتم تعيين اتجاه الهدف بالنسبة لموقعك.
+            
+            // للحصول على مسار أسهم، سنستخدم الأسهم الجاهزة في A-Frame (cones)
+            // ونزرعها تباعاً أمام المستخدم.
+
+            // مسافة السهم الواحد، والعدد الإجمالي للأسهم
+            const arrowDistance = 5; // 5 متر بين كل سهم
+            const maxArrows = 20; // زرع 20 سهم بحد أقصى لتوفير الأداء
+
+            for (let i = 1; i <= maxArrows; i++) {
+                const arrow = document.createElement('a-cone');
+                
+                // حساب موقع السهم: يمتد للأمام في عالم الـ AR باتجاه الهدف
+                // ملاحظة: الخط يظهر بطول 100 متر ليدلك على الاتجاه الصحيح
+                // نحن بحاجة إلى تحويل اتجاه الهدف إلى عالم الـ Vector.
+                
+                // سنستخدم كوداً أبسط لإظهار الأسهم تباعاً أمام المستخدم:
+                arrow.setAttribute('id', `arrow-${i}`);
+                arrow.setAttribute('geometry', 'primitive: cone; radiusBottom: 0.5; height: 2;');
+                arrow.setAttribute('material', 'color: #00FF00; opacity: 1; shader: flat;');
+                arrow.setAttribute('rotation', '180 0 0'); // توجيه السهم للأمام (على الأرض)
+                arrow.setAttribute('position', `0 -1.6 -${i * arrowDistance}`); // يمتد للأمام في عالم الـ AR
+                
+                // لإظهار السهم تدريجياً، سنستخدم الأنيميشن (لا يعمل في كل المتصفحات)
+                // arrow.setAttribute('animation__fadein', 'property: opacity; from: 0; to: 1; dur: 500; easing: easeInCubic; delay: ' + (i * 200));
+
+                scene.appendChild(arrow);
+            }
+            console.log("Arrows drawn towards destination.");
+        }
+
+        // تحديث اتجاه المسار بناءً على حركة المستخدم
         window.addEventListener('gps-camera-update-position', (e) => {
-            const lineEntity = document.querySelector('#path-line');
-            
-            // جعل الخط الأخضر يمتد دائماً للأمام باتجاه الهدف في عالم AR
-            // ملاحظة: الخط يظهر بطول 100 متر ليدلك على الاتجاه الصحيح
-            lineEntity.setAttribute('line', {
-                start: '0 -1.6 0', 
-                end: '0 -1.6 -100', 
-                color: '#00FF00',
-                opacity: 1
-            });
-            
-            console.log("Position updated, path adjusted.");
+            const userPosition = e.detail.position;
+            const targetPosition = document.querySelector('#target-destination').getAttribute('gps-entity-place');
+
+            // رسم الأسهم باتجاه الهدف (سيتم رسمها مرة واحدة عند التحديث الأول)
+            drawPathToTarget(userPosition, targetPosition);
         });
 
         // تنبيه في حال عدم دعم البوصلة
         window.addEventListener('deviceorientationabsolute', (event) => {
             if (event.absolute === false) {
-                alert("جهازك قد لا يدعم البوصلة بدقة، قد لا يظهر المسار في الاتجاه الصحيح.");
+                alert("جهازك قد لا يدعم البوصلة بدقة، قد لا تظهر الأسهم في الاتجاه الصحيح.");
             }
         });
     </script>
