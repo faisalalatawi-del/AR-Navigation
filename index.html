@@ -8,9 +8,10 @@
 </head>
 
 <body style="margin: 0; overflow: hidden;">
-    <div style="position: fixed; top: 20px; width: 100%; text-align: center; z-index: 10; color: #ffffff; font-family: 'Arial', sans-serif; font-weight: bold; text-shadow: 2px 2px 4px rgba(0,0,0,0.8); pointer-events: none;">
-        <div style="background: rgba(0, 255, 0, 0.2); display: inline-block; padding: 10px 20px; border-radius: 50px; border: 1px solid #00FF00;">
-            اتبع الأسهم للوصول إلى مواقف لومي 
+    <div style="position: fixed; top: 20px; width: 100%; text-align: center; z-index: 10; color: #ffffff; font-family: 'Arial', sans-serif; pointer-events: none;">
+        <div style="background: rgba(0, 0, 0, 0.7); display: inline-block; padding: 15px 25px; border-radius: 20px; border: 1px solid #00FF00; box-shadow: 0 0 15px rgba(0,255,0,0.3);">
+            <div style="font-size: 12px; color: #00FF00; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px;">المسافة المتبقية لمواقف لومي</div>
+            <div id="distance-display" style="font-size: 28px; font-weight: bold;">جاري الحساب...</div>
         </div>
     </div>
 
@@ -21,11 +22,10 @@
         
         <a-assets>
             <img id="my-arrow" src="https://i.postimg.cc/brj5SLrn/240-F-341860718-Weyx-Hj3AZVe1gd-CRc0Yn4Wk296ew-LDmi-removebg-preview.png" crossorigin="anonymous">
-            
             <img id="lumi-logo" src="https://i.postimg.cc/YqXwTKj3/Lumi-01.png" crossorigin="anonymous">
         </a-assets>
 
-        <a-camera gps-camera rotation-reader far="200"></a-camera>
+        <a-camera gps-camera rotation-reader far="10000"></a-camera>
 
         <a-entity id="destination" gps-entity-place="latitude: 28.370345; longitude: 36.596866;">
             
@@ -51,13 +51,21 @@
 
     <script>
         let arrowsCreated = false;
+        const distanceElement = document.getElementById('distance-display');
 
         window.addEventListener('gps-camera-update-position', (e) => {
+            // تحديث عداد المسافة (e.detail.distance يقيس المسافة بالمتر للهدف)
+            if (e.detail.distance !== undefined) {
+                const dist = Math.round(e.detail.distance);
+                distanceElement.innerText = dist + " متر";
+            }
+
+            // رسم الأسهم (يتم مرة واحدة فقط عند التشغيل)
             if (arrowsCreated) return;
 
             const scene = document.querySelector('a-scene');
-            const numArrows = 30; // عدد الأسهم الممتدة على الطريق
-            const spacing = 4;    // المسافة بين الأسهم
+            const numArrows = 30; 
+            const spacing = 4;    
 
             for (let i = 1; i <= numArrows; i++) {
                 const arrow = document.createElement('a-plane');
@@ -67,17 +75,15 @@
                 arrow.setAttribute('height', '4');
                 arrow.setAttribute('material', 'transparent: true; shader: flat; side: double;');
                 
-                // التموضع على الأرض
                 const zPos = -(i * spacing);
                 arrow.setAttribute('position', `0 -1.6 ${zPos}`); 
                 
-                // جعل السهم مسطحاً تماماً على الأرض
                 arrow.setAttribute('rotation', '-90 0 0');
                 
                 scene.appendChild(arrow);
             }
             arrowsCreated = true;
-            console.log("Lumi navigation path initialized.");
+            console.log("Lumi navigation path and distance tracker initialized.");
         });
     </script>
 </body>
