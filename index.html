@@ -1,18 +1,59 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>AR Navigation</title>
-    <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
+    <meta charset='utf-8'>
+    <meta http-equiv='X-UA-Compatible' content='IE=edge'>
+    <title>AR Green Path Navigation</title>
+    <script src='https://aframe.io/releases/1.3.0/aframe.min.js'></script>
     <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar-nft.js"></script>
 </head>
-<body style="margin: 0; overflow: hidden;">
-    <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false;">
-        <a-box 
+
+<body style='margin: 0; overflow: hidden;'>
+    <a-scene
+        vr-mode-ui="enabled: false"
+        embedded
+        arjs='sourceType: webcam; debugUIEnabled: false;'>
+
+        <a-entity 
+            id="destination"
             gps-entity-place="latitude: 28.370356; longitude: 36.569299;" 
-            material="color: red;" 
-            scale="10 10 10">
-        </a-box>
-        <a-camera gps-camera rotation-reader></a-camera>
+            geometry="primitive: cylinder; radius: 0.5; height: 10;"
+            material="color: #00FF00; opacity: 0.8"
+            position="0 5 0">
+            <a-text value="Target" align="center" position="0 6 0" scale="5 5 5" color="#00FF00"></a-text>
+        </a-entity>
+
+        <a-entity id="path" line="start: 0 0 0; end: 0 0 0; color: #00FF00"></a-entity>
+
+        <a-camera gps-camera rotation-reader> </a-camera>
     </a-scene>
+
+    <script>
+        // احصل على العناصر البرمجية
+        const destination = document.querySelector('#destination');
+        const path = document.querySelector('#path');
+
+        // دالة لتحديث المسار باستمرار
+        window.addEventListener('gps-camera-update-position', (e) => {
+            const userPos = e.detail.position; // موقع المستخدم الحالي (المصدر)
+            const destPos = destination.getAttribute('gps-entity-place'); // موقع الهدف (الوجهة)
+
+            // حساب الاتجاه والمسافة بين المصدر والوجهة في الواقع المعزز
+            // (هذا يتطلب تحويل إحداثيات GPS إلى إحداثيات ثلاثية الأبعاد)
+            
+            // للحصول على مسار أبسط وأكثر ثباتاً، سنقوم بتحديث نقطة البداية والنهاية للخط
+            // لتمتد من أسفل الكاميرا مباشرة إلى أسفل هدف الوجهة.
+            
+            path.setAttribute('line', {
+                start: `${userPos.x} -1.6 ${userPos.z}`, // بداية الخط عند قدمي المستخدم
+                end: `0 0 0`, // نهاية الخط عند مركز الهدف
+                color: '#00FF00', // لون أخضر ساطع
+                opacity: 0.9 // شفافية الخط
+            });
+            
+            // لزيادة سمك الخط في A-Frame، نستخدم خاصية linewidth (لا تعمل في كل المتصفحات)
+            // path.setAttribute('line', 'linewidth', 5);
+        });
+    </script>
 </body>
 </html>
