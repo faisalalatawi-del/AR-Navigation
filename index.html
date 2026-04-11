@@ -2,17 +2,47 @@
 <html>
 <head>
     <meta charset='utf-8'>
-    <title>Lumi AR - Ground Path</title>
+    <title>Lumi AR - Street Path</title>
     <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
     <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar-nft.js"></script>
     <script src="https://unpkg.com/aframe-look-at-component@0.8.0/dist/aframe-look-at-component.min.js"></script>
+    
+    <style>
+        /* تصميم عداد المسافة المتبقية */
+        #ui-container {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            width: 85%;
+            pointer-events: none;
+        }
+        .distance-card {
+            background: rgba(10, 10, 10, 0.9);
+            border-bottom: 4px solid #00FF00;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            color: white;
+            font-family: 'Arial', sans-serif;
+        }
+        #dist-val {
+            font-size: 35px;
+            font-weight: 900;
+            color: #00FF00;
+            display: block;
+        }
+    </style>
 </head>
 
 <body style="margin: 0; overflow: hidden;">
-    <div style="position: fixed; top: 20px; width: 100%; text-align: center; z-index: 10; pointer-events: none;">
-        <div style="background: rgba(0, 0, 0, 0.8); display: inline-block; padding: 15px 25px; border-radius: 20px; border: 2px solid #00FF00; color: white; font-family: Arial;">
-            <div style="font-size: 10px; color: #00FF00;">المسافة المتبقية</div>
-            <div id="distance-display" style="font-size: 24px; font-weight: bold;">انتظر إشارة الـ GPS...</div>
+
+    <div id="ui-container">
+        <div class="distance-card">
+            <div style="font-size: 12px; opacity: 0.8; letter-spacing: 2px;">المسافة المتبقية لمواقف لومي</div>
+            <span id="dist-val">-- متر</span>
         </div>
     </div>
 
@@ -22,65 +52,82 @@
         arjs="sourceType: webcam; debugUIEnabled: false; trackingMethod: best;">
         
         <a-assets>
-            <img id="my-arrow" src="https://i.postimg.cc/brj5SLrn/240-F-341860718-Weyx-Hj3AZVe1gd-CRc0Yn4Wk296ew-LDmi-removebg-preview.png" crossorigin="anonymous">
-            <img id="lumi-logo" src="https://i.postimg.cc/YqXwTKj3/Lumi-01.png" crossorigin="anonymous">
+            <img id="arrow-texture" src="https://i.postimg.cc/brj5SLrn/240-F-341860718-Weyx-Hj3AZVe1gd-CRc0Yn4Wk296ew-LDmi-removebg-preview.png" crossorigin="anonymous">
+            <img id="lumi-floor-logo" src="https://i.postimg.cc/YqXwTKj3/Lumi-01.png" crossorigin="anonymous">
         </a-assets>
 
-        <a-camera gps-camera="minDistance: 1;" rotation-reader far="10000"></a-camera>
+        <a-camera gps-camera="minDistance: 1;" rotation-reader></a-camera>
 
-        <a-entity id="lumi-target" gps-entity-place="latitude: 28.370348; longitude: 36.596865;">
-            <a-image src="#lumi-logo" position="0 12 0" scale="8 8 8" look-at="[gps-camera]"></a-image>
-            <a-cylinder color="#00FF00" height="500" radius="0.2" opacity="0.5"></a-cylinder>
-            <a-text value="LUMI STATION" align="center" color="#00FF00" position="0 18 0" scale="15 15 15" look-at="[gps-camera]"></a-text>
+        <a-entity id="destination" gps-entity-place="latitude: 28.370348; longitude: 36.596865;">
+            <a-image src="#lumi-floor-logo" rotation="-90 0 0" scale="15 15 15" position="0 -1.5 0"></a-image>
+            <a-cylinder color="#00FF00" height="500" radius="0.1" opacity="0.3"></a-cylinder>
+            <a-text value="LUMI STATION" align="center" color="#00FF00" position="0 8 0" scale="12 12 12" look-at="[gps-camera]"></a-text>
         </a-entity>
 
     </a-scene>
 
     <script>
-        let arrowsCreated = false;
-        const targetLatLng = { lat: 28.370348, lon: 36.596865 };
-        const distanceText = document.getElementById('distance-display');
+        let isPathDrawn = false;
+        const targetPoint = { lat: 28.370348, lon: 36.596865 };
+        const distLabel = document.getElementById('dist-val');
 
+        // تحديث البيانات عند استلام إشارة الـ GPS
         window.addEventListener('gps-camera-update-position', (e) => {
             const userPos = e.detail.position;
             
-            // تحديث المسافة الرقمية
+            // 1. حساب وعرض المسافة بدقة
             if (e.detail.distance !== undefined) {
-                distanceText.innerText = Math.round(e.detail.distance) + " متر";
+                const distance = Math.round(e.detail.distance);
+                distLabel.innerText = distance + " متر";
+                
+                if(distance < 10) {
+                    distLabel.innerText = "🚩 وصلت للوجهة";
+                    distLabel.style.color = "#FFD700";
+                }
             }
 
-            // إنشاء الخطوط الأرضية مرة واحدة عند الحصول على الموقع
-            if (!arrowsCreated && userPos) {
-                generateGroundPath(userPos, targetLatLng);
-                arrowsCreated = true;
+            // 2. رسم المسار الأرضي "الحي" (مرة واحدة فقط)
+            if (!isPathDrawn && userPos) {
+                drawStreetPath(userPos, targetPoint);
+                isPathDrawn = true;
             }
         });
 
-        function generateGroundPath(start, end) {
+        function drawStreetPath(start, end) {
             const scene = document.querySelector('a-scene');
-            const steps = 15; // عدد الأسهم التي سيتم رسمها على الأرض
+            const arrowCount = 20; // عدد الأسهم على الأرض
 
-            for (let i = 1; i <= steps; i++) {
-                const ratio = i / (steps + 1);
-                // حساب إحداثيات السهم بين موقعك والهدف
-                const lat = start.latitude + (end.lat - start.latitude) * ratio;
-                const lon = start.longitude + (end.lon - start.longitude) * ratio;
+            for (let i = 1; i <= arrowCount; i++) {
+                const fraction = i / (arrowCount + 1);
+                const currentLat = start.latitude + (end.lat - start.latitude) * fraction;
+                const currentLon = start.longitude + (end.lon - start.longitude) * fraction;
 
-                const arrow = document.createElement('a-image');
-                arrow.setAttribute('src', '#my-arrow');
-                arrow.setAttribute('gps-entity-place', `latitude: ${lat}; longitude: ${lon};`);
+                const arrowEntity = document.createElement('a-image');
+                arrowEntity.setAttribute('src', '#arrow-texture');
+                arrowEntity.setAttribute('gps-entity-place', `latitude: ${currentLat}; longitude: ${currentLon};`);
                 
-                // إعدادات السهم ليكون على الأرض تماماً
-                arrow.setAttribute('scale', '4 8 4');
-                arrow.setAttribute('rotation', '-90 0 0'); // تمديده على الأرض
-                arrow.setAttribute('position', '0 -1.6 0'); // تحت مستوى الكاميرا ليكون أرضياً
+                // فرش السهم على الأرض (مثل دهان الشوارع)
+                arrowEntity.setAttribute('rotation', '-90 0 0');
+                arrowEntity.setAttribute('position', '0 -1.55 0'); // ملاصق للأرض تماماً
+                arrowEntity.setAttribute('scale', '5 8 5');
                 
-                // توجيه السهم نحو الهدف
-                arrow.setAttribute('look-at', '#lumi-target');
-                
-                scene.appendChild(arrow);
+                // توجيه مقدمة السهم نحو الهدف
+                arrowEntity.setAttribute('look-at', '#destination');
+
+                // أنيميشن "نبض" السهم ليعطي إيحاء بالحياة والحركة للأمام
+                arrowEntity.setAttribute('animation', {
+                    property: 'opacity',
+                    from: 0.2,
+                    to: 1,
+                    dur: 1500,
+                    dir: 'alternate',
+                    loop: true,
+                    easing: 'easeInOutQuad'
+                });
+
+                scene.appendChild(arrowEntity);
             }
-            console.log("تم رسم الخطوط الأرضية الجغرافية.");
+            console.log("تم رسم المسار الجغرافي الأرضي بنجاح.");
         }
     </script>
 </body>
